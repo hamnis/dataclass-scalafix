@@ -5,15 +5,17 @@ import scala.meta._
 
 class Data extends SemanticRule("Data") {
   object AnnotationName {
-    def unapply(cls: Defn.Class): Option[Defn.Class] = cls.mods.collectFirst{
-      case Mod.Annot(init) => init.tpe match {
-        case Type.Name("Data") => Some(cls)
-        case _ => None
+    def unapply(cls: Defn.Class): Option[(Mod.Annot, Defn.Class)] = cls.mods.collectFirst{
+      case m@Mod.Annot(init) => {
+        init.tpe match {
+          case Type.Name("Data") => Some(m -> cls)
+          case _ => None
+        }
       }
     }.flatten
   }
 
-  def modify(cls: Defn.Class) = {
+  def modify(mod: Mod.Annot, cls: Defn.Class) = {
     val fields = cls.ctor.paramss.head.map(p => Term.Name(p.name.value))
     val fieldsWithType = cls.ctor.paramss.head.flatMap(p => p.decltpe.map(Term.Name(p.name.value) -> _))
     val equal = fields.map(n => q"this.${n} == c.${n}").reduce((a, b) => q"$a && $b")
@@ -32,8 +34,17 @@ class Data extends SemanticRule("Data") {
           }"""
     }
 
+    def toString = {
+      val l = Lit.String(s"${cls.name.value}(")
+      val sb = q"val sb = new StringBuilder($l)"
+      val close = Lit.String(")")
+      val sbFields = fields.map(f => q"sb.append($f)")
+      val block = Term.Block(sb :: sbFields ::: List(q"sb.append($close)", q"sb.toString()"))
+      q"override def toString = $block"
+    }
+
     def copy = {
-      val cbn = fieldsWithType.map{case (n, t) => Term.Param(Nil, n, Some(Type.ByName(t)), Some(q"this.$n"))}
+      val cbn = fieldsWithType.map{case (n, t) => Term.Param(Nil, n, Some(t), Some(q"this.$n"))}
       q"private def copy(..$cbn): ${cls.name} = new ${cls.name}(..$fields)"
     }
 
@@ -42,7 +53,8 @@ class Data extends SemanticRule("Data") {
       q"def $withName($n: $t): ${cls.name} = copy($n = $n)"
     }
 
-    cls.copy(ctor = ctor, templ = cls.templ.copy(stats = equals :: hashCode :: copy :: withFields ::: cls.templ.stats))
+    val template = cls.templ.copy(stats = equals :: hashCode :: copy :: withFields ::: List(toString) ::: cls.templ.stats)
+    cls.copy(mods = Mod.Final() :: cls.mods.filterNot(_ == mod), ctor = ctor, templ = template)
   }
 
   override def fix(implicit doc: SemanticDocument): Patch = {
@@ -51,8 +63,8 @@ class Data extends SemanticRule("Data") {
     //println("Tree.structureLabeled: " + doc.tree.structureLabeled)
 
     val allAnnotationedClasses = doc.tree.collect{
-      case AnnotationName(c) =>
-        Patch.replaceTree(c, modify(c).toString())
+      case AnnotationName((mod, c)) =>
+        Patch.replaceTree(c, modify(mod, c).toString())
         //val fields = modified.ctor.paramss.head
     }
     //allAnnotationedClasses.foreach(println)
