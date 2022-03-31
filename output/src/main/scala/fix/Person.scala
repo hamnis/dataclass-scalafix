@@ -8,7 +8,7 @@ final class Person(val name: String, val age: Int) extends Product with Serializ
     case _ =>
       false
   }
-  override def hashCode(): Int = {
+  override lazy val hashCode: Int = {
     val state = Seq(name, age)
     state.foldLeft(0)((a, b) => 31 * a.hashCode() + b.hashCode())
   }
@@ -18,13 +18,21 @@ final class Person(val name: String, val age: Int) extends Product with Serializ
     case _ => false
   }
   override def productArity = 2
-  override def productElement(n: Int) = {
-    val state = Seq(name, age)
-    state(n)
+  override def productElement(n: Int) = n match {
+    case 0 =>
+      name
+    case 1 =>
+      age
+    case _ =>
+      throw new IndexOutOfBoundsException()
   }
-  override def productElementName(n: Int) = {
-    val state = Seq(name, age)
-    state(n)
+  override def productElementName(n: Int) = n match {
+    case 0 =>
+      "name"
+    case 1 =>
+      "age"
+    case _ =>
+      throw new IndexOutOfBoundsException()
   }
   override def productElementNames = {
     Seq("name", "age").iterator
@@ -36,10 +44,11 @@ final class Person(val name: String, val age: Int) extends Product with Serializ
   def withName(name: String): Person = copy(name = name)
   def withAge(age: Int): Person = copy(age = age)
   override def toString = {
-    val sb = new StringBuilder("Person(")
-    sb.append(name)
-    sb.append(age)
-    sb.append(")")
-    sb.toString()
+    val sb = new StringBuilder("Person")
+    sb.append(productElementNames.zip(productIterator).map({
+      case (name, value) =>
+        s"$name=$value"
+    }).mkString("(", ",", ")"))
+    sb.toString
   }
 }

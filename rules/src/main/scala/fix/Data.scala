@@ -27,7 +27,7 @@ class Data extends SemanticRule("Data") {
           }"""
     }
     val hashCode = {
-      q"""override def hashCode(): Int = {
+      q"""override lazy val hashCode: Int = {
             val state = Seq(..$fields)
             state.foldLeft(0)((a, b) => 31 * a.hashCode() + b.hashCode())
           }"""
@@ -45,16 +45,18 @@ class Data extends SemanticRule("Data") {
     }
 
     val productElement = {
-      q"""override def productElement(n: Int) = {
-            val state = Seq(..$fields)
-            state(n)
+      val terms = fields.zipWithIndex.map{case (term, idx) => Case.apply(p"$idx", None, term) }
+      q"""override def productElement(n: Int) = n match {
+            ..case $terms
+            case _ => throw new IndexOutOfBoundsException()
        }"""
     }
 
     val productElementName = {
-      q"""override def productElementName(n: Int) = {
-            val state = Seq(..$fields)
-            state(n)
+      val terms = fields.zipWithIndex.map{case (term, idx) => Case.apply(p"$idx", None, Lit.String(term.value)) }
+      q"""override def productElementName(n: Int) = n match {
+           ..case $terms
+           case _ => throw new IndexOutOfBoundsException()
        }"""
     }
 
@@ -79,11 +81,15 @@ class Data extends SemanticRule("Data") {
     val productDefs = canEqual :: productArity :: productElement :: productElementName :: productElementNames :: productIterator :: productPrefix :: Nil
 
     def toString = {
-      val l = Lit.String(s"${cls.name.value}(")
-      val sb = q"val sb = new StringBuilder($l)"
-      val close = Lit.String(")")
-      val sbFields = fields.map(f => q"sb.append($f)")
-      val block = Term.Block(sb :: sbFields ::: List(q"sb.append($close)", q"sb.toString()"))
+      val className = Lit.String(s"${cls.name.value}")
+      val block =
+        q"""val sb = new StringBuilder($className)
+            sb.append(productElementNames.zip(productIterator).map{
+              case (name, value) => s"$$name=$$value"
+            }.mkString("(", ",", ")"))
+            sb.toString
+          """
+
       q"override def toString = $block"
     }
 

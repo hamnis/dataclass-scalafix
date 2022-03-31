@@ -12,10 +12,10 @@ inThisBuild(
     ),
     developers := List(
       Developer(
-        "example-username",
-        "Example Full Name",
-        "example@email.com",
-        url("https://example.com")
+        "hamnis",
+        "Erlend Hamnaberg",
+        "erlend@hamnaberg.net",
+        url("https://github.com/hamnis")
       )
     ),
     semanticdbEnabled := true,
