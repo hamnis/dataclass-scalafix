@@ -104,19 +104,11 @@ class Data extends SemanticRule("Data") {
   }
 
   override def fix(implicit doc: SemanticDocument): Patch = {
-    //println("Tree.syntax: " + doc.tree.syntax)
-    //println("Tree.structure: " + doc.tree.structure)
-    //println("Tree.structureLabeled: " + doc.tree.structureLabeled)
-
     val allAnnotationedClasses = doc.tree.collect{
       case AnnotationName((mod, c)) =>
         Patch.replaceTree(c, modify(mod, c).toString())
-        //val fields = modified.ctor.paramss.head
     }
-    //allAnnotationedClasses.foreach(println)
-    Patch.fromIterable(allAnnotationedClasses)
-
-    //Patch.empty
+    Patch.fromIterable(allAnnotationedClasses) + Patch.removeGlobalImport(Symbol("data/Data#"))
   }
 
 }

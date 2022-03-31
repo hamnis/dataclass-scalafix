@@ -1,6 +1,5 @@
 package fix
 
-import data.Data
 
 final class Person(val name: String, val age: Int) extends Product with Serializable {
   override def equals(obj: Any): Boolean = obj match {
