@@ -5,7 +5,7 @@ import scala.meta._
 
 class Data extends SemanticRule("Data") {
   object AnnotationName {
-    def unapply(cls: Defn.Class): Option[(Mod.Annot, Defn.Class)] = cls.mods.collectFirst{
+    def unapply(cls: Defn.Class): Option[(Mod.Annot, Defn.Class)] = cls.mods.collectFirst {
       case m@Mod.Annot(init) => {
         init.tpe match {
           case Type.Name("Data") => Some(m -> cls)
@@ -45,7 +45,7 @@ class Data extends SemanticRule("Data") {
     }
 
     val productElement = {
-      val terms = fields.zipWithIndex.map{case (term, idx) => Case.apply(p"$idx", None, term) }
+      val terms = fields.zipWithIndex.map { case (term, idx) => Case.apply(p"$idx", None, term) }
       q"""override def productElement(n: Int) = n match {
             ..case $terms
             case _ => throw new IndexOutOfBoundsException()
@@ -53,7 +53,7 @@ class Data extends SemanticRule("Data") {
     }
 
     val productElementName = {
-      val terms = fields.zipWithIndex.map{case (term, idx) => Case.apply(p"$idx", None, Lit.String(term.value)) }
+      val terms = fields.zipWithIndex.map { case (term, idx) => Case.apply(p"$idx", None, Lit.String(term.value)) }
       q"""override def productElementName(n: Int) = n match {
            ..case $terms
            case _ => throw new IndexOutOfBoundsException()
@@ -82,35 +82,50 @@ class Data extends SemanticRule("Data") {
 
     def toString = {
       val className = Lit.String(s"${cls.name.value}")
-      val block =
-        q"""val sb = new StringBuilder($className)
+      q"""override def toString = {
+         val sb = new StringBuilder($className)
             sb.append(productElementNames.zip(productIterator).map{
               case (name, value) => s"$$name=$$value"
             }.mkString("(", ",", ")"))
             sb.toString
-          """
-
-      q"override def toString = $block"
+         }"""
     }
 
     def copy = {
-      val cbn = fieldsWithType.map{case (n, t) => Term.Param(Nil, n, Some(t), Some(q"this.$n"))}
+      val cbn = fieldsWithType.map { case (n, t) => Term.Param(Nil, n, Some(t), Some(q"this.$n")) }
       q"private def copy(..$cbn): ${cls.name} = new ${cls.name}(..$fields)"
     }
 
-    val withFields = fieldsWithType.map{case (n, t) =>
+    val withFields = fieldsWithType.map { case (n, t) =>
       val withName = Term.Name("with" + n.value.head.toUpper + n.value.tail)
       q"def $withName($n: $t): ${cls.name} = copy($n = $n)"
     }
 
+    def matchesSignature(def1: Defn.Def, def2: Defn.Def) = {
+      def1.mods.map(_.toString()).toSet == def2.mods.map(_.toString()).toSet &&
+        def1.tparams.size == def2.tparams.size &&
+        def1.paramss.flatMap(_.map(_.toString())) == def2.paramss.flatMap(_.map(_.toString()))
+    }
+
     val inits = List(Init(Type.Name("Product"), Name.Anonymous(), Nil), Init(Type.Name("Serializable"), Name.Anonymous(), Nil))
-    val methods = equals :: hashCode :: copy :: productDefs ::: withFields ::: List(toString) ::: cls.templ.stats
-    val template = cls.templ.copy(stats = methods, inits = inits)
+    val methods = {
+      val existingDefs = cls.templ.stats.collect {
+        case d: Defn.Def => d.name.value -> d
+      }.toMap
+
+      val generatedMethods = equals :: hashCode :: copy :: productDefs ::: withFields ::: List(toString)
+      generatedMethods.collect {
+        case m@Defn.Def(_, n, _, _, _, _) if existingDefs.get(n.value).forall(!matchesSignature(m, _)) => m
+        case v@Defn.Val(_, List(Pat.Var(n)), _, _) if !existingDefs.contains(n.value) => v
+      }
+    }
+
+    val template = cls.templ.copy(stats = methods ::: cls.templ.stats, inits = cls.templ.inits.filterNot(t => inits.exists(_.name == t)) ::: inits)
     cls.copy(mods = Mod.Final() :: cls.mods.filterNot(_ == mod), ctor = ctor, templ = template)
   }
 
   override def fix(implicit doc: SemanticDocument): Patch = {
-    val allAnnotationedClasses = doc.tree.collect{
+    val allAnnotationedClasses = doc.tree.collect {
       case AnnotationName((mod, c)) =>
         Patch.replaceTree(c, modify(mod, c).toString())
     }
