@@ -3,6 +3,6 @@ rule = Data
 */
 package fix
 
-import data.Data
+import data.data
 
-@Data class Person(name: String, age: Int)
+@data class Person(name: String, age: Int)

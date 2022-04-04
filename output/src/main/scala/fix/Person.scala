@@ -1,7 +1,7 @@
 package fix
 
 
-final class Person(val name: String, val age: Int) extends Product with Serializable {
+final class Person private (val name: String, val age: Int) extends Product with Serializable {
   override def equals(obj: Any): Boolean = obj match {
     case c: Person =>
       this.name == c.name && this.age == c.age
@@ -52,3 +52,5 @@ final class Person(val name: String, val age: Int) extends Product with Serializ
     sb.toString
   }
 }
+
+object Person { def apply(name: String, age: Int): Person = new Person(name, age) }

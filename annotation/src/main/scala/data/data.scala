@@ -2,4 +2,4 @@ package data
 
 import scala.annotation.StaticAnnotation
 
-class Data extends StaticAnnotation
+class data extends StaticAnnotation

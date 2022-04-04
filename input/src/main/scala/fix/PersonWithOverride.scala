@@ -3,8 +3,8 @@ rule = Data
 */
 package fix
 
-import data.Data
+import data.data
 
-@Data class PersonWithOverride(name: String, age: Int, address: String) {
+@data class PersonWithOverride(name: String, age: Int, address: String) {
   override def toString = "Overridden"
 }

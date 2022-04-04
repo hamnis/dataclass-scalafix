@@ -8,18 +8,18 @@ class Data extends SemanticRule("Data") {
     def unapply(cls: Defn.Class): Option[(Mod.Annot, Defn.Class)] = cls.mods.collectFirst {
       case m@Mod.Annot(init) => {
         init.tpe match {
-          case Type.Name("Data") => Some(m -> cls)
+          case Type.Name("data") => Some(m -> cls)
           case _ => None
         }
       }
     }.flatten
   }
 
-  def modify(mod: Mod.Annot, cls: Defn.Class) = {
+  def generateClass(mod: Mod.Annot, cls: Defn.Class) = {
     val fields = cls.ctor.paramss.head.map(p => Term.Name(p.name.value))
     val fieldsWithType = cls.ctor.paramss.head.flatMap(p => p.decltpe.map(Term.Name(p.name.value) -> _))
     val equal = fields.map(n => q"this.${n} == c.${n}").reduce((a, b) => q"$a && $b")
-    val ctor = cls.ctor.copy(paramss = cls.ctor.paramss.map(paramList => paramList.map(param => param.copy(mods = Mod.ValParam() :: param.mods))))
+    val ctor = cls.ctor.copy(paramss = cls.ctor.paramss.map(paramList => paramList.map(param => param.copy(mods = Mod.ValParam() :: param.mods, default = None))), mods = List(Mod.Private(Name.Anonymous())))
     val equals = {
       q"""override def equals(obj: Any): Boolean = obj match {
             case c: ${cls.name} => ${equal}
@@ -124,12 +124,36 @@ class Data extends SemanticRule("Data") {
     cls.copy(mods = Mod.Final() :: cls.mods.filterNot(_ == mod), ctor = ctor, templ = template)
   }
 
+  def generateCompanion(cls: Defn.Class) = {
+    val typeparams = cls.tparams
+    val fieldsWithDefault = cls.ctor.paramss.head.map(p => Term.Name(p.name.value) -> p.default)
+    val fields = cls.ctor.paramss.head.map(p => Term.Name(p.name.value))
+    val apply2Fields = fieldsWithDefault.map { case (name, default) => default.getOrElse(name) }
+
+    val first = Defn.Def(Nil, Term.Name("apply"), typeparams, cls.ctor.paramss.map(_.map(_.copy(default = None))), Some(cls.name), q"new ${cls.name}(..$fields)")
+
+    val rest = if (cls.ctor.paramss.exists(_.exists(_.default.isDefined))) {
+      List(
+        Defn.Def(Nil, Term.Name("apply"), typeparams, cls.ctor.paramss.map(_.collect { case p if p.default.isEmpty => p }), Some(cls.name), q"new ${cls.name}(..$apply2Fields)")
+      )
+    }
+    else {
+      Nil
+    }
+
+    val stats = first :: rest
+    /*Defn.Object(Nil, Term.Name(cls.name.value), Template(Nil, Nil, Self(Name.apply("this"), None), stats))*/
+    q"""object ${Term.Name(cls.name.value)} {
+       ..$stats
+     }"""
+  }
+
   override def fix(implicit doc: SemanticDocument): Patch = {
     val allAnnotationedClasses = doc.tree.collect {
       case AnnotationName((mod, c)) =>
-        Patch.replaceTree(c, modify(mod, c).toString())
+        Patch.replaceTree(c, generateClass(mod, c).toString()) + Patch.addRight(c, "\n\n" + generateCompanion(c).toString())
     }
-    Patch.fromIterable(allAnnotationedClasses) + Patch.removeGlobalImport(Symbol("data/Data#"))
+    Patch.fromIterable(allAnnotationedClasses) + Patch.removeGlobalImport(Symbol("data/data#"))
   }
 
 }
