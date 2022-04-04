@@ -35,10 +35,10 @@ final class Person private (val name: String, val age: Int) extends Product with
       throw new IndexOutOfBoundsException()
   }
   override def productElementNames = {
-    Seq("name", "age").iterator
+    Iterator("name", "age")
   }
   override def productIterator = {
-    Seq(name, age).iterator
+    Iterator(name, age)
   }
   override def productPrefix = "Person"
   def withName(name: String): Person = copy(name = name)

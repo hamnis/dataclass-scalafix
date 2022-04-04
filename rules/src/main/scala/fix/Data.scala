@@ -64,13 +64,13 @@ class Data extends SemanticRule("Data") {
       val terms = fields.map(n => Lit.String(n.value))
 
       q"""override def productElementNames = {
-              Seq(..${terms}).iterator
+              Iterator(..${terms})
        }"""
     }
 
     val productIterator = {
       q"""override def productIterator = {
-              Seq(..$fields).iterator
+              Iterator(..$fields)
        }"""
     }
 
@@ -142,7 +142,6 @@ class Data extends SemanticRule("Data") {
     }
 
     val stats = first :: rest
-    /*Defn.Object(Nil, Term.Name(cls.name.value), Template(Nil, Nil, Self(Name.apply("this"), None), stats))*/
     q"""object ${Term.Name(cls.name.value)} {
        ..$stats
      }"""

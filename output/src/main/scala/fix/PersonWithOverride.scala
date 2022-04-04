@@ -39,10 +39,10 @@ final class PersonWithOverride private (val name: String, val age: Int, val addr
       throw new IndexOutOfBoundsException()
   }
   override def productElementNames = {
-    Seq("name", "age", "address").iterator
+    Iterator("name", "age", "address")
   }
   override def productIterator = {
-    Seq(name, age, address).iterator
+    Iterator(name, age, address)
   }
   override def productPrefix = "PersonWithOverride"
   def withName(name: String): PersonWithOverride = copy(name = name)
