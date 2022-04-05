@@ -1,4 +1,4 @@
-package data
+package dataclass
 
 import scala.annotation.StaticAnnotation
 

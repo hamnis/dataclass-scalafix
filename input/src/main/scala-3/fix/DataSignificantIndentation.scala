@@ -1,5 +1,5 @@
 /*
-rule = Data
+rule = GenerateDataClass
 */
 package fix
 

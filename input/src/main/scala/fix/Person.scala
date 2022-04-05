@@ -1,8 +1,8 @@
 /*
-rule = Data
+rule = GenerateDataClass
 */
 package fix
 
-import data.data
+import dataclass.data
 
 @data class Person(name: String, age: Int)

@@ -3,23 +3,22 @@ package fix
 import scalafix.v1._
 import scala.meta._
 
-class Data extends SemanticRule("Data") {
-  object AnnotationName {
-    def unapply(cls: Defn.Class): Option[(Mod.Annot, Defn.Class)] = cls.mods.collectFirst {
-      case m@Mod.Annot(init) => {
+class GenerateDataClass extends SemanticRule("GenerateDataClass") {
+  object DataAnnotation {
+    def unapply(cls: Defn.Class): Option[(Defn.Class)] = cls.mods.collectFirst {
+      case m@Mod.Annot(init) =>
         init.tpe match {
-          case Type.Name("data") => Some(m -> cls)
+          case Type.Name("data") => Some(cls)
           case _ => None
         }
-      }
     }.flatten
   }
 
-  def generateClass(mod: Mod.Annot, cls: Defn.Class) = {
+  def generateClass(cls: Defn.Class) = {
     val fields = cls.ctor.paramss.head.map(p => Term.Name(p.name.value))
     val fieldsWithType = cls.ctor.paramss.head.flatMap(p => p.decltpe.map(Term.Name(p.name.value) -> _))
     val equal = fields.map(n => q"this.${n} == c.${n}").reduce((a, b) => q"$a && $b")
-    val ctor = cls.ctor.copy(paramss = cls.ctor.paramss.map(paramList => paramList.map(param => param.copy(mods = Mod.ValParam() :: param.mods, default = None))), mods = List(Mod.Private(Name.Anonymous())))
+    val ctor = cls.ctor.copy(paramss = cls.ctor.paramss.map(paramList => paramList.map(param => param.copy(mods = List(Mod.ValParam()), default = None))), mods = List(Mod.Private(Name.Anonymous())))
     val equals = {
       q"""override def equals(obj: Any): Boolean = obj match {
             case c: ${cls.name} => ${equal}
@@ -120,8 +119,16 @@ class Data extends SemanticRule("Data") {
       }
     }
 
-    val template = cls.templ.copy(stats = methods ::: cls.templ.stats, inits = cls.templ.inits.filterNot(t => inits.exists(_.name == t)) ::: inits)
-    cls.copy(mods = Mod.Final() :: cls.mods.filterNot(_ == mod), ctor = ctor, templ = template)
+    val template = cls.templ.copy(stats = Nil, inits = cls.templ.inits.filterNot(t => inits.exists(_.name == t)) ::: inits)
+    val modified = cls.copy(mods = cls.mods ::: List(Mod.Final()), ctor = ctor, templ = template)
+
+    val code =
+      s"""|$modified {
+          |${methods.mkString("\n", "\n", "\n")}
+          |${cls.templ.stats.mkString("\n")}
+          |}
+          |""".stripMargin
+    Patch.replaceTree(cls, code)
   }
 
   def generateCompanion(cls: Defn.Class) = {
@@ -142,17 +149,22 @@ class Data extends SemanticRule("Data") {
     }
 
     val stats = first :: rest
-    q"""object ${Term.Name(cls.name.value)} {
-       ..$stats
-     }"""
+
+    val block = stats.mkString("\n")
+    val code =
+      s"""|object ${cls.name.value} {
+          |$block
+          |}
+          |""".stripMargin
+    Patch.addRight(cls, code)
   }
 
   override def fix(implicit doc: SemanticDocument): Patch = {
     val allAnnotationedClasses = doc.tree.collect {
-      case AnnotationName((mod, c)) =>
-        Patch.replaceTree(c, generateClass(mod, c).toString()) + Patch.addRight(c, "\n\n" + generateCompanion(c).toString())
+      case DataAnnotation(cls) =>
+        generateClass(cls) + generateCompanion(cls)
     }
-    Patch.fromIterable(allAnnotationedClasses) + Patch.removeGlobalImport(Symbol("data/data#"))
+    Patch.fromIterable(allAnnotationedClasses)
   }
 
 }
