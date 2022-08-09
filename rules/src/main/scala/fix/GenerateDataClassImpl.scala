@@ -3,7 +3,7 @@ package fix
 import scalafix.v1._
 import scala.meta._
 
-class GenerateDataClass extends SemanticRule("GenerateDataClass") {
+object GenerateDataClassImpl {
   object DataAnnotation {
     def unapply(cls: Defn.Class): Option[(Defn.Class)] = cls.mods.collectFirst {
       case m@Mod.Annot(init) =>
@@ -14,7 +14,7 @@ class GenerateDataClass extends SemanticRule("GenerateDataClass") {
     }.flatten
   }
 
-  def generateClass(cls: Defn.Class) = {
+  def generateClass(cls: Defn.Class, scala212: Boolean) = {
     val fields = cls.ctor.paramss.head.map(p => Term.Name(p.name.value))
     val fieldsWithType = cls.ctor.paramss.head.flatMap(p => p.decltpe.map(Term.Name(p.name.value) -> _))
     val equal = fields.map(n => q"this.${n} == c.${n}").reduce((a, b) => q"$a && $b")
@@ -53,7 +53,10 @@ class GenerateDataClass extends SemanticRule("GenerateDataClass") {
 
     val productElementName = {
       val terms = fields.zipWithIndex.map { case (term, idx) => Case.apply(p"$idx", None, Lit.String(term.value)) }
-      q"""override def productElementName(n: Int) = n match {
+
+      val mods = if (scala212) Nil else List(Mod.Override())
+
+      q"""..$mods def productElementName(n: Int) = n match {
            ..case $terms
            case _ => throw new IndexOutOfBoundsException()
        }"""
@@ -61,8 +64,9 @@ class GenerateDataClass extends SemanticRule("GenerateDataClass") {
 
     val productElementNames = {
       val terms = fields.map(n => Lit.String(n.value))
+      val mods = if (scala212) Nil else List(Mod.Override())
 
-      q"""override def productElementNames = {
+      q"""..$mods def productElementNames = {
               Iterator(..${terms})
        }"""
     }
@@ -106,7 +110,9 @@ class GenerateDataClass extends SemanticRule("GenerateDataClass") {
         def1.paramss.flatMap(_.map(_.toString())) == def2.paramss.flatMap(_.map(_.toString()))
     }
 
-    val inits = List(Init(Type.Name("Product"), Name.Anonymous(), Nil), Init(Type.Name("Serializable"), Name.Anonymous(), Nil))
+    def mkInit(name: String) = Init(Type.Name(name), Name.Anonymous(), Nil)
+
+    val inits = List(mkInit("Product"), mkInit("Serializable"))
     val methods = {
       val existingDefs = cls.templ.stats.collect {
         case d: Defn.Def => d.name.value -> d
@@ -159,10 +165,10 @@ class GenerateDataClass extends SemanticRule("GenerateDataClass") {
     Patch.addRight(cls, code)
   }
 
-  override def fix(implicit doc: SemanticDocument): Patch = {
+  def fix(doc: SemanticDocument, scala212: Boolean): Patch = {
     val allAnnotationedClasses = doc.tree.collect {
       case DataAnnotation(cls) =>
-        generateClass(cls) + generateCompanion(cls)
+        generateClass(cls, scala212) + generateCompanion(cls)
     }
     Patch.fromIterable(allAnnotationedClasses)
   }

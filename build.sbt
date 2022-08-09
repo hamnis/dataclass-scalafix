@@ -1,12 +1,12 @@
 lazy val V = _root_.scalafix.sbt.BuildInfo
 
-lazy val rulesCrossVersions = Seq(V.scala213)
-lazy val scala3Version = "3.0.1"
+val rulesCrossVersions = Seq(V.scala212, V.scala213)
+val scala3Version = "3.1.3"
 
 inThisBuild(
   List(
-    organization := "com.example",
-    homepage := Some(url("https://github.com/com/example")),
+    organization := "net.hamnaberg",
+    homepage := Some(url("https://github.com/hamnis/dataclass-scalafix")),
     licenses := List(
       "Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")
     ),
@@ -15,11 +15,13 @@ inThisBuild(
         "hamnis",
         "Erlend Hamnaberg",
         "erlend@hamnaberg.net",
-        url("https://github.com/hamnis")
+        url("https://github.com/hamnis"),
       )
     ),
+    crossScalaVersions := rulesCrossVersions,
+    scalaVersion := crossScalaVersions.value.head,
     semanticdbEnabled := true,
-    semanticdbVersion := scalafixSemanticdb.revision
+    semanticdbVersion := scalafixSemanticdb.revision,
   )
 )
 
@@ -45,7 +47,7 @@ lazy val annotation = projectMatrix
 lazy val rules = projectMatrix
   .settings(
     moduleName := "scalafix",
-    libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % V.scalafixVersion
+    libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % V.scalafixVersion,
   )
   .defaultAxes(VirtualAxis.jvm)
   .jvmPlatform(rulesCrossVersions)
@@ -89,20 +91,25 @@ lazy val tests = projectMatrix
     scalafixTestkitInputScalacOptions :=
       TargetAxis.resolve(input, Compile / scalacOptions).value,
     scalafixTestkitInputScalaVersion :=
-      TargetAxis.resolve(input, Compile / scalaVersion).value
+      TargetAxis.resolve(input, Compile / scalaVersion).value,
   )
   .defaultAxes(
     rulesCrossVersions.map(VirtualAxis.scalaABIVersion) :+ VirtualAxis.jvm: _*
   )
-  /*.customRow(
-    scalaVersions = Seq(scala3Version),
-    axisValues = Seq(TargetAxis(scala3Version), VirtualAxis.jvm),
-    settings = Seq()
-  )*/
   .customRow(
     scalaVersions = Seq(V.scala213),
     axisValues = Seq(TargetAxis(V.scala213), VirtualAxis.jvm),
-    settings = Seq()
+    settings = Seq(),
+  )
+  .customRow(
+    scalaVersions = Seq(V.scala213),
+    axisValues = Seq(TargetAxis(scala3Version), VirtualAxis.jvm),
+    settings = Seq(),
+  )
+  .customRow(
+    scalaVersions = Seq(V.scala212),
+    axisValues = Seq(TargetAxis(V.scala212), VirtualAxis.jvm),
+    settings = Seq(),
   )
   .dependsOn(rules)
   .enablePlugins(ScalafixTestkitPlugin)
