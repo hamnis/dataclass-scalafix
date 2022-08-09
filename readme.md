@@ -11,19 +11,19 @@ avoid infinite loop of generation, we need to split data classes into another su
 ThisBuild / scalaVersion      := "3.1.3"
 ThisBuild / version           := "0.1.0-SNAPSHOT"
 ThisBuild / semanticdbEnabled := true
+def dataclassScalafixV = "VERSION-FROM-BADGE"
+ThisBuild / scalafixDependencies += "net.hamnaberg" %% "dataclass-scalafix" % dataclassScalafixV
 
 def dataclassGen(data: Reference) = Def.taskDyn {
-  val version = "VERSION-FROM-BADGE"
   val root = (ThisBuild / baseDirectory).value.toURI.toString
   val from = (data / Compile / sourceDirectory).value
   val to = (Compile / sourceManaged).value
   val outFrom = from.toURI.toString.stripSuffix("/").stripPrefix(root)
   val outTo = to.toURI.toString.stripSuffix("/").stripPrefix(root)
-  val rule = s"dependency:GenerateDataClass@net.hamnaberg::dataclass-scalafix:$version"
   (data / Compile / compile).value
   Def.task {
     (data / Compile / scalafix)
-      .toTask(s" --rules $rule --out-from=$outFrom --out-to=$outTo")
+      .toTask(s" --rules GenerateDataClass --out-from=$outFrom --out-to=$outTo")
       .value
     (to ** "*.scala").get
   }
