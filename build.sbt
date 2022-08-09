@@ -5,11 +5,11 @@ val scala3Version = "3.1.3"
 
 inThisBuild(
   List(
+    tlBaseVersion := "0.1",
     organization := "net.hamnaberg",
     homepage := Some(url("https://github.com/hamnis/dataclass-scalafix")),
-    licenses := List(
-      "Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")
-    ),
+    startYear := Some(2022),
+    licenses := Seq(License.Apache2),
     developers := List(
       Developer(
         "hamnis",
@@ -33,40 +33,34 @@ lazy val `data` = (project in file("."))
       annotation.projectRefs ++
       tests.projectRefs: _*
   )
-  .settings(
-    publish / skip := true
-  )
+  .enablePlugins(NoPublishPlugin)
 
 lazy val annotation = projectMatrix
   .settings(
-    moduleName := "data-annotation"
+    moduleName := "dataclass-annotation"
   )
   .defaultAxes(VirtualAxis.jvm)
   .jvmPlatform(rulesCrossVersions :+ scala3Version)
 
 lazy val rules = projectMatrix
   .settings(
-    moduleName := "scalafix",
+    moduleName := "dataclass-scalafix",
     libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % V.scalafixVersion,
   )
   .defaultAxes(VirtualAxis.jvm)
   .jvmPlatform(rulesCrossVersions)
 
 lazy val input = projectMatrix
-  .settings(
-    publish / skip := true
-  )
   .dependsOn(annotation)
   .defaultAxes(VirtualAxis.jvm)
   .jvmPlatform(scalaVersions = rulesCrossVersions :+ scala3Version)
+  .enablePlugins(NoPublishPlugin)
 
 lazy val output = projectMatrix
-  .settings(
-    publish / skip := true
-  )
   .dependsOn(annotation)
   .defaultAxes(VirtualAxis.jvm)
   .jvmPlatform(scalaVersions = rulesCrossVersions :+ scala3Version)
+  .enablePlugins(NoPublishPlugin)
 
 lazy val testsAggregate = Project("tests", file("target/testsAggregate"))
   .aggregate(tests.projectRefs: _*)
