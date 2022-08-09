@@ -1,4 +1,5 @@
 # Scalafix rules for dataclass
+[![Continuous Integration](https://github.com/hamnis/dataclass-scalafix/actions/workflows/ci.yml/badge.svg)](https://github.com/http4s/http4s-netty/actions/workflows/ci.yml) ![Maven Central](https://img.shields.io/maven-central/v/net.hamnaberg/dataclass-annotation_2.13?style=flat&versionPrefix=0.1)
 
 ### Usage
 
@@ -12,12 +13,13 @@ ThisBuild / version           := "0.1.0-SNAPSHOT"
 ThisBuild / semanticdbEnabled := true
 
 def dataclassGen(data: Reference) = Def.taskDyn {
+  val version = "VERSION-FROM-BADGE"
   val root = (ThisBuild / baseDirectory).value.toURI.toString
   val from = (data / Compile / sourceDirectory).value
   val to = (Compile / sourceManaged).value
   val outFrom = from.toURI.toString.stripSuffix("/").stripPrefix(root)
   val outTo = to.toURI.toString.stripSuffix("/").stripPrefix(root)
-  val rule = url("https://raw.githubusercontent.com/hamnis/dataclass-scalafix/9d1bc56b0b53c537293f1218d5600a2e987ee82a/rules/src/main/scala/fix/GenerateDataClass.scala")
+  val rule = s"dependency:GenerateDataClass@net.hamnaberg::dataclass-scalafix:$version"
   (data / Compile / compile).value
   Def.task {
     (data / Compile / scalafix)
@@ -40,16 +42,10 @@ Optionally apply [scalafmt](https://scalameta.org/scalafmt/) to make it somewhat
 
 #### Annotations.scala
 
-Add the following file to both the subprojects:
+Add the following dependency to both the subprojects:
 
 ```scala
-package dataclass
-
-import scala.annotation.StaticAnnotation
-
-class data extends StaticAnnotation
-
-class since extends StaticAnnotation
+libraryDependencies += "net.hamnaberg" %% "dataclass-annotation" % "VERSION-FROM-BADGE"
 ```
 
 ### To develop rule
