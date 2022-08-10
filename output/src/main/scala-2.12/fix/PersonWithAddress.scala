@@ -2,7 +2,7 @@ package fix
 
 import dataclass.{data, since}
 
-@data final class Address private (val street: String, val city: String, val zip: String) extends Product with Serializable {
+@data final class Address private (@since("1.0") val street: String, @since("1.0") val city: String, @since("1.1") val zip: String) extends Product with Serializable {
 
 override def equals(obj: Any): Boolean = obj match {
   case c: Address =>
@@ -63,6 +63,8 @@ override def toString = {
 }
 object Address {
 def apply(street: String, city: String, zip: String): Address = new Address(street, city, zip)
+def apply(street: String, city: String): Address = new Address(street, city, "")
+def apply(street: String): Address = new Address(street, "", "")
 }
 
 
@@ -126,6 +128,6 @@ override def toString = {
 
 }
 object PersonWithAddress {
-def apply(name: String, age: Int, @since("1.0") address: Option[Address]): PersonWithAddress = new PersonWithAddress(name, age, address)
+def apply(name: String, age: Int, address: Option[Address]): PersonWithAddress = new PersonWithAddress(name, age, address)
 def apply(name: String, age: Int): PersonWithAddress = new PersonWithAddress(name, age, None)
 }
