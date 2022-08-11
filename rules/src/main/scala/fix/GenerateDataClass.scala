@@ -1,12 +1,19 @@
 package fix
 
 import scalafix.v1._
+
 import scala.meta._
 
-object GenerateDataClassImpl {
+class GenerateDataClass(config: Configuration) extends SemanticRule("GenerateDataClass") {
+  val scalaBinaryVersion = ScalaBinaryVersion.fromString(config.scalaVersion)
+  def this() = this(Configuration.apply())
+
+  override def withConfiguration(config: Configuration): metaconfig.Configured[Rule] =
+    metaconfig.Configured.ok(new GenerateDataClass(config))
+
   object DataAnnotation {
     def unapply(cls: Defn.Class): Option[(Defn.Class)] = cls.mods.collectFirst {
-      case m @ Mod.Annot(init) =>
+      case Mod.Annot(init) =>
         init.tpe match {
           case Type.Name("data") => Some(cls)
           case _ => None
@@ -16,7 +23,9 @@ object GenerateDataClassImpl {
 
   private final val sinceStr = "@since"
 
-  def generateClass(cls: Defn.Class, scala212: Boolean) = {
+  def generateClass(cls: Defn.Class) = {
+    val scala212 = scalaBinaryVersion == ScalaBinaryVersion.Scala212
+
     val fields = cls.ctor.paramss.head.map(p => Term.Name(p.name.value))
     val fieldsWithType =
       cls.ctor.paramss.head.flatMap(p => p.decltpe.map(Term.Name(p.name.value) -> _))
@@ -159,23 +168,22 @@ object GenerateDataClassImpl {
     val fields = params.map(p => Term.Name(p.name.value))
     val allSinceValues = (for {
       params <- cls.ctor.paramss
-      param  <- params
-    } yield
-      param.mods.find { m => m.toString.startsWith(sinceStr) } match {
-        case Some(mod) => mod.toString
-        case _         => ""
-      }).distinct.sorted
+      param <- params
+    } yield param.mods.find(m => m.toString.startsWith(sinceStr)) match {
+      case Some(mod) => mod.toString
+      case _ => ""
+    }).distinct.sorted
 
     def isParamIn(param: Term.Param, sinces: Set[String]): Boolean =
-      param.mods.find { m => m.toString.startsWith(sinceStr) } match {
+      param.mods.find(m => m.toString.startsWith(sinceStr)) match {
         case Some(mod) => sinces(mod.toString)
-        case None      => true
+        case None => true
       }
 
     def cleanParam(param: Term.Param): Term.Param =
       param.copy(
         default = None,
-        mods = param.mods.filterNot { m => m.toString.startsWith(sinceStr) },
+        mods = param.mods.filterNot(m => m.toString.startsWith(sinceStr)),
       )
 
     val first = Defn.Def(
@@ -232,11 +240,28 @@ object GenerateDataClassImpl {
     Patch.addRight(cls, code)
   }
 
-  def fix(doc: SemanticDocument, scala212: Boolean): Patch = {
+  override def fix(implicit doc: SemanticDocument): Patch = {
     val allAnnotationedClasses = doc.tree.collect { case DataAnnotation(cls) =>
-      generateClass(cls, scala212) + generateCompanion(cls)
+      generateClass(cls) + generateCompanion(cls)
     }
     Patch.fromIterable(allAnnotationedClasses)
   }
 
+}
+
+sealed trait ScalaBinaryVersion
+object ScalaBinaryVersion {
+  case object Scala3 extends ScalaBinaryVersion
+  case object Scala213 extends ScalaBinaryVersion
+  case object Scala212 extends ScalaBinaryVersion
+
+  def fromString(value: String): ScalaBinaryVersion = {
+    val toBinaryVersion = if (value.startsWith("3")) "3" else value.split('.').take(2).mkString(".")
+    toBinaryVersion match {
+      case "2.12" => Scala212
+      case "2.13" => Scala213
+      case "3" => Scala3
+      case _ => Scala213
+    }
+  }
 }
