@@ -14,6 +14,8 @@ object GenerateDataClassImpl {
     }.flatten
   }
 
+  private final val sinceStr = "@since"
+
   def generateClass(cls: Defn.Class, scala212: Boolean) = {
     val fields = cls.ctor.paramss.head.map(p => Term.Name(p.name.value))
     val fieldsWithType =
@@ -23,7 +25,7 @@ object GenerateDataClassImpl {
       paramss = cls.ctor.paramss.map(paramList =>
         paramList.map(param =>
           param.copy(
-            mods = param.mods.filter(_.toString().contains("since")) ::: List(Mod.ValParam()),
+            mods = param.mods.filter(_.toString().startsWith(sinceStr)) ::: List(Mod.ValParam()),
             default = None,
           )
         )
@@ -151,36 +153,75 @@ object GenerateDataClassImpl {
   }
 
   def generateCompanion(cls: Defn.Class) = {
+    val params = cls.ctor.paramss.head
     val typeparams = cls.tparams
-    val fieldsWithDefault = cls.ctor.paramss.head.map(p => Term.Name(p.name.value) -> p.default)
-    val fields = cls.ctor.paramss.head.map(p => Term.Name(p.name.value))
-    val apply2Fields = fieldsWithDefault.map { case (name, default) => default.getOrElse(name) }
+    val fieldsWithDefault = params.map(p => Term.Name(p.name.value) -> p.default)
+    val fields = params.map(p => Term.Name(p.name.value))
+    val allSinceValues = (for {
+      params <- cls.ctor.paramss
+      param  <- params
+    } yield
+      param.mods.find { m => m.toString.startsWith(sinceStr) } match {
+        case Some(mod) => mod.toString
+        case _         => ""
+      }).distinct.sorted
+
+    def isParamIn(param: Term.Param, sinces: Set[String]): Boolean =
+      param.mods.find { m => m.toString.startsWith(sinceStr) } match {
+        case Some(mod) => sinces(mod.toString)
+        case None      => true
+      }
+
+    def cleanParam(param: Term.Param): Term.Param =
+      param.copy(
+        default = None,
+        mods = param.mods.filterNot { m => m.toString.startsWith(sinceStr) },
+      )
 
     val first = Defn.Def(
       Nil,
       Term.Name("apply"),
       typeparams,
-      cls.ctor.paramss.map(_.map(_.copy(default = None))),
+      cls.ctor.paramss.map(_.map(cleanParam)),
       Some(cls.name),
       q"new ${cls.name}(..$fields)",
     )
 
-    val rest = if (cls.ctor.paramss.exists(_.exists(_.default.isDefined))) {
-      List(
-        Defn.Def(
-          Nil,
-          Term.Name("apply"),
-          typeparams,
-          cls.ctor.paramss.map(_.collect { case p if p.default.isEmpty => p }),
-          Some(cls.name),
-          q"new ${cls.name}(..$apply2Fields)",
-        )
+    val sinceApplies =
+      if (allSinceValues.size > 1) {
+        (for {
+          i <- 0 to (allSinceValues.size - 1)
+        } yield {
+          val sub = allSinceValues.slice(0, i + 1).toSet
+          cls.ctor.paramss.map(_.collect { case p if isParamIn(p, sub) => p })
+        }).toList
+      } else Nil
+
+    val nonDefaults =
+      if (cls.ctor.paramss.exists(_.exists(_.default.isDefined))) {
+        List(cls.ctor.paramss.map(_.collect { case p if p.default.isEmpty => p }))
+      } else Nil
+
+    val restParamsss = (sinceApplies ::: nonDefaults).distinct.filter { paramss =>
+      paramss.head.size != cls.ctor.paramss.head.size
+    }
+    val rest = restParamsss.map { paramss =>
+      val fieldNames = paramss.head.map(_.name.value).toSet
+      val applyFields = fieldsWithDefault.map { case (name, default) =>
+        if (fieldNames(name.value)) name
+        else default.getOrElse(sys.error(s"default value missing for $name"))
+      }
+      Defn.Def(
+        Nil,
+        Term.Name("apply"),
+        typeparams,
+        paramss.map(_.map(cleanParam)),
+        Some(cls.name),
+        q"new ${cls.name}(..$applyFields)",
       )
-    } else {
-      Nil
     }
 
-    val stats = first :: rest
+    val stats = first :: rest.toList
 
     val block = stats.mkString("\n")
     val code =
