@@ -183,7 +183,7 @@ class GenerateDataClass(config: Configuration) extends SemanticRule("GenerateDat
     def cleanParam(param: Term.Param): Term.Param =
       param.copy(
         default = None,
-        mods = param.mods.filterNot(m => m.toString.startsWith(sinceStr)),
+        mods = Nil,
       )
 
     val first = Defn.Def(
