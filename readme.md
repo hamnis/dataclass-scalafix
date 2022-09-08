@@ -1,5 +1,5 @@
 # Scalafix rules for dataclass
-[![Continuous Integration](https://github.com/hamnis/dataclass-scalafix/actions/workflows/ci.yml/badge.svg)](https://github.com/http4s/http4s-netty/actions/workflows/ci.yml) ![Maven Central](https://img.shields.io/maven-central/v/net.hamnaberg/dataclass-annotation_2.13?style=flat&versionPrefix=0.1)
+[![Continuous Integration](https://github.com/hamnis/dataclass-scalafix/actions/workflows/ci.yml/badge.svg)](https://github.com/hamnis/dataclass-scalafix/actions/workflows/ci.yml) ![Maven Central](https://img.shields.io/maven-central/v/net.hamnaberg/dataclass-annotation_2.13?style=flat&versionPrefix=0.1)
 
 ### Usage
 
