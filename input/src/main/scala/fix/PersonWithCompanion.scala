@@ -9,4 +9,5 @@ import dataclass.data
 
 object PersonWithCompanion {
 def hello = s"Hello!"
+def apply() = new PersonWithCompanion("", 0) 
 }

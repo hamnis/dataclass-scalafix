@@ -231,9 +231,16 @@ class GenerateDataClass(config: Configuration) extends SemanticRule("GenerateDat
 
     val stats = first :: rest.toList
 
+    def getNonApplyStats(companion: Defn.Object) = {
+      companion.templ.stats.collect {
+        case Defn.Def(_, name, _, _, _, _) if name.value == "apply" => None
+        case s => Some(s)
+      }.flatten
+    }
+
     objOpt match {
       case Some(obj) => {
-        val block = (obj.templ.stats ::: stats).mkString("\n")
+        val block = (getNonApplyStats(obj) ::: stats).mkString("\n")
         val code =
           s"""|object ${cls.name.value} {
               |$block
