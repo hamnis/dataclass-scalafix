@@ -161,7 +161,7 @@ class GenerateDataClass(config: Configuration) extends SemanticRule("GenerateDat
     Patch.replaceTree(cls, code)
   }
 
-  def generateCompanion(cls: Defn.Class) = {
+  def generateCompanion(cls: Defn.Class, maybeCompanion: Option[Defn.Object]) = {
     val params = cls.ctor.paramss.head
     val typeparams = cls.tparams
     val fieldsWithDefault = params.map(p => Term.Name(p.name.value) -> p.default)
@@ -231,18 +231,48 @@ class GenerateDataClass(config: Configuration) extends SemanticRule("GenerateDat
 
     val stats = first :: rest.toList
 
-    val block = stats.mkString("\n")
-    val code =
-      s"""|object ${cls.name.value} {
-          |$block
-          |}
-          |""".stripMargin
-    Patch.addRight(cls, code)
+    def getNonApplyStats(companion: Defn.Object) = {
+      companion.templ.stats.collect {
+        case Defn.Def(_, name, _, _, _, _) if name.value == "apply" => None
+        case s => Some(s)
+      }.flatten
+    }
+
+    maybeCompanion match {
+      case Some(companion) => {
+        val block = (getNonApplyStats(companion) ::: stats).mkString("\n")
+        val code =
+          s"""|object ${cls.name.value} {
+              |$block
+              |}
+              |""".stripMargin
+        Patch.replaceTree(companion, code)
+      }
+      case None => {
+        val block = stats.mkString("\n")
+        val code =
+          s"""|object ${cls.name.value} {
+              |$block
+              |}
+              |""".stripMargin
+        Patch.addRight(cls, code)
+      }
+    }
   }
 
   override def fix(implicit doc: SemanticDocument): Patch = {
+    def getExistingCompanion(cls: Defn.Class) = {
+      val name = Term.Name(cls.name.value).structure
+      doc.tree.collect {
+        case o: Defn.Object => o.name.structure match {
+          case `name` => Some(o)
+          case _ => None
+        }
+      }.flatten.headOption
+    }
+
     val allAnnotationedClasses = doc.tree.collect { case DataAnnotation(cls) =>
-      generateClass(cls) + generateCompanion(cls)
+      generateClass(cls) + generateCompanion(cls, getExistingCompanion(cls))
     }
     Patch.fromIterable(allAnnotationedClasses)
   }
