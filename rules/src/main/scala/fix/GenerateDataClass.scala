@@ -161,7 +161,7 @@ class GenerateDataClass(config: Configuration) extends SemanticRule("GenerateDat
     Patch.replaceTree(cls, code)
   }
 
-  def generateCompanion(cls: Defn.Class, objOpt: Option[Defn.Object]) = {
+  def generateCompanion(cls: Defn.Class, maybeCompanion: Option[Defn.Object]) = {
     val params = cls.ctor.paramss.head
     val typeparams = cls.tparams
     val fieldsWithDefault = params.map(p => Term.Name(p.name.value) -> p.default)
@@ -238,15 +238,15 @@ class GenerateDataClass(config: Configuration) extends SemanticRule("GenerateDat
       }.flatten
     }
 
-    objOpt match {
-      case Some(obj) => {
-        val block = (getNonApplyStats(obj) ::: stats).mkString("\n")
+    maybeCompanion match {
+      case Some(companion) => {
+        val block = (getNonApplyStats(companion) ::: stats).mkString("\n")
         val code =
           s"""|object ${cls.name.value} {
               |$block
               |}
               |""".stripMargin
-        Patch.replaceTree(obj, code)
+        Patch.replaceTree(companion, code)
       }
       case None => {
         val block = stats.mkString("\n")
