@@ -52,10 +52,10 @@ def withCity(city: String): Address = copy(city = city)
 def withZip(zip: String): Address = copy(zip = zip)
 override def toString = {
   val sb = new StringBuilder("Address")
-  sb.append(productElementNames.zip(productIterator).map({
+  sb.append(productElementNames.zip(productIterator).map {
     case (name, value) =>
       s"$name=$value"
-  }).mkString("(", ",", ")"))
+  }.mkString("(", ",", ")"))
   sb.toString
 }
 
@@ -118,10 +118,10 @@ def withAge(age: Int): PersonWithAddress = copy(age = age)
 def withAddress(address: Option[Address]): PersonWithAddress = copy(address = address)
 override def toString = {
   val sb = new StringBuilder("PersonWithAddress")
-  sb.append(productElementNames.zip(productIterator).map({
+  sb.append(productElementNames.zip(productIterator).map {
     case (name, value) =>
       s"$name=$value"
-  }).mkString("(", ",", ")"))
+  }.mkString("(", ",", ")"))
   sb.toString
 }
 
