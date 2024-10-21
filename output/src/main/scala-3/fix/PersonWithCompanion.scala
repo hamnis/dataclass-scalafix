@@ -47,10 +47,10 @@ def withName(name: String): PersonWithCompanion = copy(name = name)
 def withAge(age: Int): PersonWithCompanion = copy(age = age)
 override def toString = {
   val sb = new StringBuilder("PersonWithCompanion")
-  sb.append(productElementNames.zip(productIterator).map({
+  sb.append(productElementNames.zip(productIterator).map {
     case (name, value) =>
       s"$name=$value"
-  }).mkString("(", ",", ")"))
+  }.mkString("(", ",", ")"))
   sb.toString
 }
 
