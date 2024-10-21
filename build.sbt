@@ -70,7 +70,6 @@ lazy val testsAggregate = Project("tests", file("target/testsAggregate"))
 
 lazy val tests = projectMatrix
   .settings(
-    publish / skip := true,
     libraryDependencies += "ch.epfl.scala" % "scalafix-testkit" % V.scalafixVersion % Test cross CrossVersion.full,
     scalafixTestkitOutputSourceDirectories :=
       TargetAxis
@@ -106,4 +105,4 @@ lazy val tests = projectMatrix
     settings = Seq(),
   )
   .dependsOn(rules)
-  .enablePlugins(ScalafixTestkitPlugin)
+  .enablePlugins(ScalafixTestkitPlugin, NoPublishPlugin)
