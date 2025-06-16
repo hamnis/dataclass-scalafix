@@ -10,7 +10,6 @@ avoid infinite loop of generation, we need to split data classes into another su
 ```scala
 ThisBuild / scalaVersion      := "3.1.3"
 ThisBuild / version           := "0.1.0-SNAPSHOT"
-ThisBuild / semanticdbEnabled := true
 def dataclassScalafixV = "VERSION-FROM-BADGE"
 ThisBuild / scalafixDependencies += "net.hamnaberg" %% "dataclass-scalafix" % dataclassScalafixV
 

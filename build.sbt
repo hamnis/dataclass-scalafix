@@ -5,7 +5,7 @@ val scala3Version = "3.3.4"
 
 inThisBuild(
   List(
-    tlBaseVersion := "0.2",
+    tlBaseVersion := "0.3",
     organization := "net.hamnaberg",
     homepage := Some(url("https://github.com/hamnis/dataclass-scalafix")),
     startYear := Some(2022),
