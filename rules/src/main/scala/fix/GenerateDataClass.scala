@@ -4,7 +4,7 @@ import scalafix.v1._
 
 import scala.meta._
 
-class GenerateDataClass(config: Configuration) extends SemanticRule("GenerateDataClass") {
+class GenerateDataClass(config: Configuration) extends SyntacticRule("GenerateDataClass") {
   val scalaBinaryVersion = ScalaBinaryVersion.fromString(config.scalaVersion)
   def this() = this(Configuration.apply())
 
@@ -260,7 +260,7 @@ class GenerateDataClass(config: Configuration) extends SemanticRule("GenerateDat
     }
   }
 
-  override def fix(implicit doc: SemanticDocument): Patch = {
+  override def fix(implicit doc: SyntacticDocument): Patch = {
     def getExistingCompanion(cls: Defn.Class) = {
       val name = Term.Name(cls.name.value).structure
       doc.tree.collect {
