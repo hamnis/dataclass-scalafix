@@ -18,7 +18,6 @@ inThisBuild(
         url("https://github.com/hamnis"),
       )
     ),
-    sonatypeCredentialHost := xerial.sbt.Sonatype.sonatypeLegacy,
     crossScalaVersions := rulesCrossVersions,
     scalaVersion := crossScalaVersions.value.head,
     semanticdbEnabled := true,
